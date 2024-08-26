@@ -160,6 +160,27 @@ def rsync_check_install(ssh):
     if ret != 0:
         sys.exit("Error: please check that rsync is installed (both local and remote sides)")
 
+# check if rsync version is high enough: protocol should >= 30
+def rsync_check_version(ssh):
+    re_protocol_ver = re.compile(r"protocol version ([0-9]+)")
+
+    try:
+        verstr = subprocess.check_output(["rsync", "--version"])
+        m = re_protocol_ver.search(verstr.decode())
+        if m and int(m.group(1)) < 30:
+            raise ValueError
+    except (ValueError, subprocess.CalledProcessError):
+        sys.exit("Error: rsync required a protocol >= 30 (on MacOS, use brew to install latest version)")
+
+    if ssh != None:
+        try:
+            verstr = subprocess.check_output(ssh.getcmdlist() + ["rsync", "--version"])
+            m = re_protocol_ver.search(verstr.decode())
+            if m and int(m.group(1)) < 30:
+                raise ValueError
+        except (ValueError, subprocess.CalledProcessError):
+            sys.exit("Error: rsync required a protocol >= 30 (on MacOS, use brew to install latest version)")
+
 # check if find supports printf option, and also remote find if ssh needed
 def find_check_command(ssh):
     localfind = remotefind = None
@@ -802,6 +823,7 @@ if ssh != None:
 
 # check rsync and find installs
 rsync_check_install(ssh)
+rsync_check_version(ssh)
 findcmdlocal, findcmdremote = find_check_command(ssh)
 
 # add trailing slashes (to avoid problems with symlinked dirs)
